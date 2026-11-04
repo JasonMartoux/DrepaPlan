@@ -1,0 +1,24 @@
+{
+  "name": "@drepaplan/web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "effect": "4.1.2",
+    "foldkit": "0.170.0"
+  },
+  "devDependencies": {
+    "@effect/vitest": "4.1.2",
+    "@foldkit/vite-plugin": "0.29.0",
+    "@types/node": "24.19.2",
+    "typescript": "7.0.2",
+    "vite": "8.3.4",
+    "vitest": "5.0.5"
+  }
+}
