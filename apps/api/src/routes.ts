@@ -1,7 +1,7 @@
 import type { Ask } from "@drepaplan/cartridge-chatbot";
 import type { MedicalIngestion } from "@drepaplan/cartridge-medical-parser";
-import type { UploadUrls } from "@drepaplan/cartridge-storage";
-import { DocumentKey } from "@drepaplan/domain";
+import { DocumentTooLarge, type Uploads } from "@drepaplan/cartridge-storage";
+import { DocumentKey, MaxPdfBytes } from "@drepaplan/domain";
 import { Effect, type Redacted, Schema } from "effect";
 import * as HttpServerRequest from "effect/http/HttpServerRequest";
 import * as HttpServerResponse from "effect/http/HttpServerResponse";
@@ -9,7 +9,7 @@ import * as HttpServerResponse from "effect/http/HttpServerResponse";
 import { bearerToken, tokenMatches } from "./auth.ts";
 
 export interface ApiServices {
-  readonly uploads: UploadUrls["Service"];
+  readonly uploads: Uploads["Service"];
   readonly ingestion: MedicalIngestion["Service"];
   readonly ask: Ask["Service"];
   readonly apiToken: Redacted.Redacted<string>;
@@ -18,7 +18,6 @@ export interface ApiServices {
 
 export class Unauthorized extends Schema.TaggedError<Unauthorized>()("Unauthorized", {}) {}
 
-const UploadBody = Schema.Struct({ contentType: Schema.String, sizeBytes: Schema.Number });
 const IngestionBody = Schema.Struct({ documentKey: DocumentKey });
 const AskBody = Schema.Struct({ question: Schema.String });
 
@@ -32,8 +31,10 @@ const statusFor = (tag: string): number => {
       return 422;
     case "StageTimedOut":
       return 504;
-    case "UnsupportedDocument":
     case "DocumentTooLarge":
+      return 413;
+    case "UnsupportedDocument":
+      return 415;
     case "QuestionInvalid":
     case "SchemaError":
     case "HttpServerError":
@@ -79,9 +80,13 @@ export const handleRequest = (services: ApiServices) =>
       }
 
       if (request.method === "POST" && path === "/uploads") {
-        const body = yield* HttpServerRequest.schemaBodyJson(UploadBody);
-        const issued = yield* services.uploads.issue(body);
-        return HttpServerResponse.jsonUnsafe(issued, { status: 201 });
+        const declaredBytes = Number(request.headers["content-length"]);
+        if (declaredBytes > MaxPdfBytes) {
+          return yield* new DocumentTooLarge({ sizeBytes: declaredBytes, maxBytes: MaxPdfBytes });
+        }
+        const bytes = new Uint8Array(yield* request.arrayBuffer);
+        const stored = yield* services.uploads.store({ contentType: request.headers["content-type"], bytes });
+        return HttpServerResponse.jsonUnsafe(stored, { status: 201 });
       }
       if (request.method === "POST" && path === "/ingestions") {
         const body = yield* HttpServerRequest.schemaBodyJson(IngestionBody);

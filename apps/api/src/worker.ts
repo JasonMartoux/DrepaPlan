@@ -3,13 +3,13 @@ import { Ask } from "@drepaplan/cartridge-chatbot";
 import { ChatbotCloudflare } from "@drepaplan/cartridge-chatbot/cloudflare";
 import { MedicalIngestion } from "@drepaplan/cartridge-medical-parser";
 import { MedicalParserCloudflare } from "@drepaplan/cartridge-medical-parser/cloudflare";
-import { UploadUrls } from "@drepaplan/cartridge-storage";
-import { StorageCloudflare, UploadOrigins } from "@drepaplan/cartridge-storage/cloudflare";
+import { Uploads } from "@drepaplan/cartridge-storage";
+import { StorageCloudflare } from "@drepaplan/cartridge-storage/cloudflare";
 import { Config, Effect, Layer } from "effect";
 
 import { handleRequest } from "./routes.ts";
 
-const CartridgeLayer = Layer.mergeAll(UploadUrls.layer, MedicalIngestion.layer, Ask.layer).pipe(
+const CartridgeLayer = Layer.mergeAll(Uploads.layer, MedicalIngestion.layer, Ask.layer).pipe(
   Layer.provide(Layer.mergeAll(StorageCloudflare, MedicalParserCloudflare, ChatbotCloudflare))
 );
 
@@ -22,11 +22,15 @@ export default Cloudflare.Worker(
   },
   Effect.gen(function* () {
     const apiToken = yield* Config.Redacted("DREPAPLAN_API_TOKEN");
-    const uploads = yield* UploadUrls;
+    const allowedOrigins = (yield* Config.String("DREPAPLAN_ALLOWED_ORIGINS"))
+      .split(",")
+      .map((origin) => origin.trim())
+      .filter((origin) => origin !== "");
+    const uploads = yield* Uploads;
     const ingestion = yield* MedicalIngestion;
     const ask = yield* Ask;
     return {
-      fetch: handleRequest({ uploads, ingestion, ask, apiToken, allowedOrigins: UploadOrigins }),
+      fetch: handleRequest({ uploads, ingestion, ask, apiToken, allowedOrigins }),
     };
   }).pipe(Effect.provide(CartridgeLayer))
 );

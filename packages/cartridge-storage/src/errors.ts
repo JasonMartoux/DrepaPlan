@@ -10,9 +10,9 @@ export class DocumentTooLarge extends Schema.TaggedError<DocumentTooLarge>()(
   { sizeBytes: Schema.Number, maxBytes: Schema.Number }
 ) {}
 
-export class UploadSigningFailed extends Schema.TaggedError<UploadSigningFailed>()(
-  "UploadSigningFailed",
-  { message: Schema.String }
+export class DocumentWriteFailed extends Schema.TaggedError<DocumentWriteFailed>()(
+  "DocumentWriteFailed",
+  { key: Schema.String, message: Schema.String }
 ) {}
 
 export class DocumentNotFound extends Schema.TaggedError<DocumentNotFound>()(

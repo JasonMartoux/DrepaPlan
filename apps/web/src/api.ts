@@ -8,14 +8,15 @@ const request = <S extends Schema.Top & { readonly DecodingServices: never }>(
   schema: S,
   path: string,
   token: string,
-  body: unknown
+  body: BodyInit,
+  contentType: string
 ) =>
   Effect.tryPromise({
     try: async () => {
       const response = await fetch(apiUrl(path), {
         method: "POST",
-        headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
-        body: JSON.stringify(body),
+        headers: { authorization: `Bearer ${token}`, "content-type": contentType },
+        body,
       });
       const json: unknown = await response.json();
       if (!response.ok) throw new Error(`${response.status} ${JSON.stringify(json)}`);
@@ -27,26 +28,22 @@ const request = <S extends Schema.Top & { readonly DecodingServices: never }>(
     Effect.mapError((error) => (error instanceof ApiFailure ? error : new ApiFailure({ message: error.message })))
   );
 
-const IssuedUpload = Schema.Struct({ key: Schema.String, uploadUrl: Schema.String });
+const postJson = <S extends Schema.Top & { readonly DecodingServices: never }>(
+  schema: S,
+  path: string,
+  token: string,
+  body: unknown
+) => request(schema, path, token, JSON.stringify(body), "application/json");
+
+const StoredUpload = Schema.Struct({ key: Schema.String });
 const IngestionReport = Schema.Struct({ appointments: Schema.Number, prescriptions: Schema.Number });
 const Answer = Schema.Struct({ answer: Schema.String });
 
 export const uploadAndIngest = (token: string, file: File) =>
   Effect.gen(function* () {
-    const issued = yield* request(IssuedUpload, "/uploads", token, { contentType: file.type, sizeBytes: file.size });
-    yield* Effect.tryPromise({
-      try: async () => {
-        const response = await fetch(issued.uploadUrl, {
-          method: "PUT",
-          headers: { "content-type": file.type },
-          body: file,
-        });
-        if (!response.ok) throw new Error(`Upload failed with ${response.status}`);
-      },
-      catch: (cause) => new ApiFailure({ message: cause instanceof Error ? cause.message : String(cause) }),
-    });
-    return yield* request(IngestionReport, "/ingestions", token, { documentKey: issued.key });
+    const stored = yield* request(StoredUpload, "/uploads", token, file, "application/pdf");
+    return yield* postJson(IngestionReport, "/ingestions", token, { documentKey: stored.key });
   });
 
 export const ask = (token: string, question: string) =>
-  request(Answer, "/ask", token, { question }).pipe(Effect.map((result) => result.answer));
+  postJson(Answer, "/ask", token, { question }).pipe(Effect.map((result) => result.answer));
