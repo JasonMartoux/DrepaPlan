@@ -1,0 +1,29 @@
+{
+  "name": "drepaplan",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Personal health records (appointments and prescriptions) on the CAFE stack: Cloudflare, Alchemy, Foldkit, Effect.",
+  "type": "module",
+  "scripts": {
+    "build": "turbo run build",
+    "check": "turbo run typecheck test",
+    "dev": "pnpm --filter @drepaplan/infra dev",
+    "infra:deploy": "pnpm --filter @drepaplan/infra deploy",
+    "infra:destroy": "pnpm --filter @drepaplan/infra destroy",
+    "infra:plan": "pnpm --filter @drepaplan/infra plan",
+    "test": "turbo run test",
+    "typecheck": "turbo run typecheck"
+  },
+  "devDependencies": {
+    "@types/node": "24.19.2",
+    "effect": "4.1.2",
+    "turbo": "2.11.9",
+    "typescript": "7.0.2",
+    "vitest": "5.0.5"
+  },
+  "engines": {
+    "node": ">=24.18.0",
+    "pnpm": ">=11.1.2"
+  },
+  "packageManager": "pnpm@11.3.0"
+}
